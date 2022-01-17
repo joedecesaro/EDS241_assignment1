@@ -1,0 +1,90 @@
+---
+title: "EDS241: Assignment 1"
+author: "Joe DeCesaro"
+date: '`r format(Sys.time(), "%m/%d/%Y")`'
+output: 
+  pdf_document:
+    toc: false
+    number_sections: yes
+header-includes:
+  - \setlength{\parindent}{1em}
+  - \usepackage{float}
+--- 
+  
+``` {r setup, echo = FALSE, message = FALSE, warning = FALSE}
+
+# set default chunk options
+knitr::opts_chunk$set(fig.width = 4, fig.height = 3, 
+                      echo = TRUE, message = FALSE, warning = FALSE)
+
+
+# load packages
+packages=c("stargazer", "here", "tidyr", "dplyr","stringr", "janitor", 
+           "cowplot", "ggplot2", "tinytex", "datasets", "tibble", "readxl", "estimatr")
+
+for (i in packages) {
+  if (require(i,character.only=TRUE)==FALSE) {
+    install.packages(i,repos='http://cran.us.r-project.org')
+  }
+  else {
+    require(i,character.only=TRUE)
+  }
+}
+
+#devtools::install_github('rstudio/rmarkdown')
+options(scipen=999) # not scientific notation
+
+
+```
+
+# Assignment 1
+
+The data for this assignment come from CalEnviroScreen 4.0, a mapping and data tool produced by the California Office of Environmental Health Hazards Assessment (OEHHA). The data are compiled and constructed from a variety of sources and cover all 8,035 census tracts in California. Source: https://oehha.ca.gov/calenviroscreen/report/calenviroscreen-40
+
+The full data are contained in the file CES4.xls, which is available on Gauchospace (note that the Excel file has three “tabs” or “sheets”). The data is in the tab “CES4.0FINAL_results” and “Data Dictionary” contains the definition of the variables.
+
+For the assignment, you will need the following variables: **CensusTract, TotalPopulation, CaliforniaCounty (the county where the census tract is located), LowBirthWeight (percent of census tract births with weight less than 2500g), PM25 (ambient concentrations of PM2.5 in the census tract, in micrograms per cubic meters), and Poverty (percent of population in the census tract living below twice the federal poverty line)**.
+
+## Clean data
+
+\noindent The following code loads and cleans the data.
+
+```{r , include=TRUE}
+# Read in the first sheet and clean up
+data_sheet1 <- read_xlsx(here("CES4.xlsx"), 
+                         sheet = 1,
+                         na = "NA") %>% 
+  clean_names() %>% 
+  select(census_tract, total_population, california_county,  low_birth_weight, pm2_5, poverty)
+
+```
+
+
+## a) What is the average concentration of PM2.5 across all census tracts in California?
+\noindent The average concentration of PM2.5 across all census tracts in California is `r round(mean(data_sheet1$pm2_5), 2)`
+
+## b) What county has the highest level of poverty in California?
+\noindent The county with the highest level of poverty in California is Ventura County
+
+## c) Make a histogram depicting the distribution of percent low birth weight and PM2.5
+```{r}
+ggplot(data = data_sheet1, aes(x = low_birth_weight)) +
+  geom_histogram()
+
+```
+
+```{r}
+ggplot(data = data_sheet1, aes(x = pm2_5)) +
+  geom_histogram()
+
+```
+
+## d) Estimate a OLS regression of LowBirthWeight on PM25. Report the estimated slope coefficient and its heteroskedasticity-robust standard error. Interpret the estimated slope coefficient. Is the effect of PM25 on LowBirthWeight statistically significant at the 5%?
+```{r}
+model <- estimatr::lm_robust(pm2_5 ~ low_birth_weight, data = data_sheet1)
+model
+```
+The slope estimated slope coefficient is 0.21 and its heteroskedasticity-robust standard error is 0.015. The slope coefficient can be interpreted as for every 1% increase in low birth weight percentage we can expect a mean PM2.5 for the census tract to increase by 0.21. As the standard error is within the bounds of the confidence interval it is statistically significant.
+
+## e) Suppose a new air quality policy is expected to reduce PM2.5 concentration by 2 micrograms per cubic meters. Predict the new average value of LowBirthWeight and derive its 95% confidence interval. Interpret the 95% confidence interval.
+
