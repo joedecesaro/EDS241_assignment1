@@ -78,13 +78,19 @@ data_sheet1 <- read_xlsx(here("CES4.xlsx"),
 ## c) Make a histogram depicting the distribution of percent low birth weight and PM2.5
 ```{r}
 ggplot(data = data_sheet1, aes(x = low_birth_weight)) +
-  geom_histogram()
+  geom_histogram() +
+  theme_cowplot(14) +
+  labs(x = "Low Birth Weight Percentage", 
+       y = "Count")
 
 ```
 
 ```{r}
 ggplot(data = data_sheet1, aes(x = pm2_5)) +
-  geom_histogram()
+  geom_histogram() +
+  theme_cowplot(14) +
+  labs(x = "Annual Mean PM 2.5 Concentrations", 
+       y = "Count")
 
 ```
 
