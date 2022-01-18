@@ -65,6 +65,13 @@ data_sheet1 <- read_xlsx(here("CES4.xlsx"),
 
 ## b) What county has the highest level of poverty in California?
 \noindent The county with the highest level of poverty in California is Ventura County
+```{r}
+# pov <- data_sheet1 %>% 
+#   group_by(california_county) %>% 
+#   summarise(pov_total = sum(total_population),
+#             avg)
+```
+
 
 ## c) Make a histogram depicting the distribution of percent low birth weight and PM2.5
 ```{r}
@@ -81,10 +88,28 @@ ggplot(data = data_sheet1, aes(x = pm2_5)) +
 
 ## d) Estimate a OLS regression of LowBirthWeight on PM25. Report the estimated slope coefficient and its heteroskedasticity-robust standard error. Interpret the estimated slope coefficient. Is the effect of PM25 on LowBirthWeight statistically significant at the 5%?
 ```{r}
-model <- estimatr::lm_robust(pm2_5 ~ low_birth_weight, data = data_sheet1)
-model
+model_1 <- estimatr::lm_robust(pm2_5 ~ low_birth_weight, data = data_sheet1)
+model_1
 ```
 The slope estimated slope coefficient is 0.21 and its heteroskedasticity-robust standard error is 0.015. The slope coefficient can be interpreted as for every 1% increase in low birth weight percentage we can expect a mean PM2.5 for the census tract to increase by 0.21. As the standard error is within the bounds of the confidence interval it is statistically significant.
 
 ## e) Suppose a new air quality policy is expected to reduce PM2.5 concentration by 2 micrograms per cubic meters. Predict the new average value of LowBirthWeight and derive its 95% confidence interval. Interpret the 95% confidence interval.
+```{r}
+pm2_5_reduced <- dplyr::mutate(data_sheet1, pm2_5 = pm2_5 - 2) %>% 
+  modelr::add_predictions(model = model_1)
+```
+
+## f) Add the variable Poverty as an explanatory variable to the regressionin (d). Interpret the estimated coefficient on Poverty. What happens to the estimated coefficient on PM25, compared to the regression in (d). Explain.
+```{r}
+model_2 <- estimatr::lm_robust(pm2_5 ~ low_birth_weight + poverty, data = data_sheet1)
+model_2
+```
+The estimated coefficient of poverty in this model is 0.026. This can be interpreted to mean that for every 1% increase in "poverty" there is an expected 0.026 increase in PM2.5 for the census tract while holding low birth weight percentage constant. The estimated coefficient for PM2.5 decreases from 9.13 to 8.81 in this model compared to the previous. This happens because this coefficient now predicts the PM2.5 level for a census tract with no low birth rates and no poverty. This is an unlikely scenario but is the models prediction based on the regression.
+
+## g) From the regression in (f), test the null hypothesis that the effect of PM2.5 is equal to the effect of Poverty
+```{r}
+
+```
+
+
 
