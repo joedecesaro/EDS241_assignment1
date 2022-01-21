@@ -20,7 +20,7 @@ knitr::opts_chunk$set(fig.width = 4, fig.height = 3,
 
 # load packages
 packages=c("stargazer", "here", "tidyr", "dplyr","stringr", "janitor", 
-           "cowplot", "ggplot2", "tinytex", "datasets", "tibble", "readxl", "estimatr", "car")
+           "cowplot", "ggplot2", "tinytex", "datasets", "tibble", "readxl", "estimatr", "car", "broom", "kableExtra")
 
 for (i in packages) {
   if (require(i,character.only=TRUE)==FALSE) {
@@ -32,21 +32,16 @@ for (i in packages) {
 }
 
 #devtools::install_github('rstudio/rmarkdown')
-options(scipen=999) # not scientific notation
+options(scipen=5) # not scientific notation
 
 
 ```
 
 # Assignment 1
 
-The data for this assignment come from CalEnviroScreen 4.0, a mapping and data tool produced by the California Office of Environmental Health Hazards Assessment (OEHHA). The data are compiled and constructed from a variety of sources and cover all 8,035 census tracts in California. Source: https://oehha.ca.gov/calenviroscreen/report/calenviroscreen-40
-
-The full data are contained in the file CES4.xls, which is available on Gauchospace (note that the Excel file has three “tabs” or “sheets”). The data is in the tab “CES4.0FINAL_results” and “Data Dictionary” contains the definition of the variables.
-
 For the assignment, you will need the following variables: **CensusTract, TotalPopulation, CaliforniaCounty (the county where the census tract is located), LowBirthWeight (percent of census tract births with weight less than 2500g), PM25 (ambient concentrations of PM2.5 in the census tract, in micrograms per cubic meters), and Poverty (percent of population in the census tract living below twice the federal poverty line)**.
 
 ## Clean data
-
 \noindent The following code loads and cleans the data.
 
 ```{r , include=TRUE}
@@ -64,17 +59,15 @@ data_sheet1 <- read_xlsx(here("CES4.xlsx"),
 \noindent The average concentration of PM2.5 across all census tracts in California is `r round(mean(data_sheet1$pm2_5), 2)`
 
 ## b) What county has the highest level of poverty in California?
-\noindent The county with the highest level of poverty in California is Ventura County
+\noindent The county with the highest average level of poverty in California is Tulare County
 ```{r}
-# pov <- data_sheet1 %>% 
-#   group_by(california_county) %>% 
-#   summarise(pov_total = sum(total_population),
-#             avg)
+pov <- data_sheet1 %>%
+  group_by(california_county) %>%
+  summarise(mean(poverty))
 
-# Olivier will go over or need to clarify
 ```
 
-
+\newpage
 ## c) Make a histogram depicting the distribution of percent low birth weight and PM2.5
 ```{r}
 ggplot(data = data_sheet1, aes(x = low_birth_weight)) +
@@ -94,24 +87,50 @@ ggplot(data = data_sheet1, aes(x = pm2_5)) +
 
 ```
 
-## d) Estimate a OLS regression of LowBirthWeight on PM25. Report the estimated slope coefficient and its heteroskedasticity-robust standard error. Interpret the estimated slope coefficient. Is the effect of PM25 on LowBirthWeight statistically significant at the 5%?
+## d) Estimate a OLS regression of LowBirthWeight on PM2.5. Report the estimated slope coefficient and its heteroskedasticity-robust standard error. Interpret the estimated slope coefficient. Is the effect of PM25 on LowBirthWeight statistically significant at the 5%?
 ```{r}
 model_1 <- estimatr::lm_robust(low_birth_weight ~ pm2_5, data = data_sheet1)
-summary(model_1)
+
+tidy_model_1 = broom::tidy(model_1)
+
+tidy_model_1 %>%
+  dplyr::filter(term != '(Intercept)') %>% 
+  dplyr::select(term, estimate, std.error, p.value) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(full_width = FALSE, 
+                latex_options = "HOLD_position")
 ```
-The estimated slope coefficient is 0.118 and its heteroskedasticity-robust standard error is 0.008. The slope coefficient can be interpreted as for every 1 unit increase in PM2.5 we can expect a low birth weight percentage for the census tract to increase by 0.118. As the standard error is within the bounds of the confidence interval it is statistically significant.
+The estimated slope coefficient is 0.118 and its heteroskedasticity-robust standard error is 0.008. The slope coefficient can be interpreted that for every 1 unit increase in PM2.5 we can expect a low birth weight percentage for the census tract to increase by 0.118. As the standard error is within the bounds of the confidence interval it is statistically significant.
 
 ## f) Add the variable Poverty as an explanatory variable to the regressionin (d). Interpret the estimated coefficient on Poverty. What happens to the estimated coefficient on PM2.5, compared to the regression in (d). Explain.
 ```{r}
 model_2 <- estimatr::lm_robust(low_birth_weight ~ pm2_5 + poverty, data = data_sheet1)
-summary(model_2)
+
+tidy_model_2 = broom::tidy(model_2)
+
+tidy_model_2 %>%
+  dplyr::filter(term != '(Intercept)') %>% 
+  dplyr::select(term, estimate, std.error, p.value) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(full_width = FALSE, 
+                latex_options = "HOLD_position")
 
 ```
-The estimated coefficient of poverty in this model is 0.027. This can be interpreted to mean that for every 1% increase in "poverty" there is an expected 0.027 increase in low birth weight percentage for the census tract while holding PM2.5 constant. The estimated coefficient for PM2.5 decreases from 0.118 to 0.043 in this model compared to the previous. This happens because in the previous model the PM2.5 was trying to account for all of the changes in low birth weight percentages and now that change is, so to speak, "divided" with the poverty metric.
+The estimated coefficient of poverty in this model is 0.027. This can be interpreted to mean that for every 1% increase in "poverty" there is an expected 0.027 increase in low birth weight percentage for the census tract while holding PM2.5 constant. The estimated coefficient for PM2.5 decreases from 0.118 to 0.059 in this model compared to the previous. This happens because in the previous model the PM2.5 was trying to account for all of the variation in low birth weight percentages and now that change is, so to speak, "divided" with the poverty metric.
 
 ## g) From the regression in (f), test the null hypothesis that the effect of PM2.5 is equal to the effect of Poverty
 ```{r}
-linearHypothesis(model = model_2, c("pm2_5=poverty"), white.adjust = "hc2")
+lin_model <- linearHypothesis(model = model_2, c("pm2_5=poverty"), white.adjust = "hc2")
+
+tidy_lin_model = broom::tidy(lin_model)
+
+tidy_lin_model %>%
+  dplyr::select(statistic, p.value) %>% 
+  dplyr::filter(statistic > 0) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(full_width = FALSE, 
+                latex_options = "HOLD_position")
+
 ```
 We can reject the null hypothesis that the effect of PM2.5 is equal to the effect of Poverty as the p-value is statistically significant.
 
